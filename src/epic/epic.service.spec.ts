@@ -3,9 +3,23 @@ import { EpicService } from './epic.service';
 import { NasaApiService, EpicImage } from '../nasa-api/nasa-api.service';
 import { QueryEpicDto } from './dto/query-epic.dto';
 
+// Mock fs/promises
+jest.mock('fs/promises', () => ({
+  readFile: jest.fn(),
+  writeFile: jest.fn(),
+  mkdir: jest.fn(),
+}));
+
+// Mock path
+jest.mock('path', () => ({
+  join: jest.fn((...args) => args.join('/')),
+}));
+
 describe('EpicService', () => {
   let service: EpicService;
   let nasaApiService: NasaApiService;
+  let fsPromises: any;
+  let pathModule: any;
 
   const mockEpicImage: EpicImage = {
     identifier: '20190530011359',
@@ -87,6 +101,8 @@ describe('EpicService', () => {
 
     service = module.get<EpicService>(EpicService);
     nasaApiService = module.get<NasaApiService>(NasaApiService);
+    fsPromises = require('fs/promises');
+    pathModule = require('path');
 
     // Reset mocks
     jest.clearAllMocks();
@@ -97,39 +113,64 @@ describe('EpicService', () => {
   });
 
   describe('getEpicImages', () => {
-    it('should get EPIC images with query parameters', async () => {
+    it('should get EPIC images from cache when available', async () => {
       const query: QueryEpicDto = { date: '2019-05-30', natural: true };
       const expectedImages = [mockEpicImage];
+      const expectedResponse = {
+        items: expectedImages,
+        status: 'success (cached)',
+      };
 
-      mockNasaApiService.getEpicImages.mockResolvedValue(expectedImages);
+      // Mock cache hit
+      fsPromises.readFile.mockResolvedValue(JSON.stringify(expectedImages));
 
       const result = await service.getEpicImages(query);
 
-      expect(result).toEqual(expectedImages);
-      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', true);
+      expect(result).toEqual(expectedResponse);
+      expect(fsPromises.readFile).toHaveBeenCalled();
+      expect(mockNasaApiService.getEpicImages).not.toHaveBeenCalled();
     });
 
-    it('should get EPIC images with default natural parameter', async () => {
-      const query: QueryEpicDto = { date: '2019-05-30' };
+    it('should get EPIC images from NASA API when cache miss and cache the response', async () => {
+      const query: QueryEpicDto = { date: '2019-05-30', natural: true };
       const expectedImages = [mockEpicImage];
+      const expectedResponse = {
+        items: expectedImages,
+        status: 'success',
+      };
 
+      // Mock cache miss
+      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
       mockNasaApiService.getEpicImages.mockResolvedValue(expectedImages);
+      fsPromises.mkdir.mockResolvedValue(undefined);
+      fsPromises.writeFile.mockResolvedValue(undefined);
 
       const result = await service.getEpicImages(query);
 
-      expect(result).toEqual(expectedImages);
+      expect(result).toEqual(expectedResponse);
+      expect(fsPromises.readFile).toHaveBeenCalled();
       expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', true);
+      expect(fsPromises.mkdir).toHaveBeenCalled();
+      expect(fsPromises.writeFile).toHaveBeenCalled();
     });
 
     it('should get EPIC images with enhanced parameter', async () => {
       const query: QueryEpicDto = { date: '2019-05-30', natural: false };
       const expectedImages = [mockEpicImage];
+      const expectedResponse = {
+        items: expectedImages,
+        status: 'success',
+      };
 
+      // Mock cache miss
+      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
       mockNasaApiService.getEpicImages.mockResolvedValue(expectedImages);
+      fsPromises.mkdir.mockResolvedValue(undefined);
+      fsPromises.writeFile.mockResolvedValue(undefined);
 
       const result = await service.getEpicImages(query);
 
-      expect(result).toEqual(expectedImages);
+      expect(result).toEqual(expectedResponse);
       expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', false);
     });
 
@@ -137,9 +178,31 @@ describe('EpicService', () => {
       const query: QueryEpicDto = { date: '2019-05-30' };
       const errorMessage = 'API Error';
 
+      // Mock cache miss
+      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
       mockNasaApiService.getEpicImages.mockRejectedValue(new Error(errorMessage));
 
       await expect(service.getEpicImages(query)).rejects.toThrow(errorMessage);
+    });
+
+    it('should handle cache write errors gracefully', async () => {
+      const query: QueryEpicDto = { date: '2019-05-30' };
+      const expectedImages = [mockEpicImage];
+      const expectedResponse = {
+        items: expectedImages,
+        status: 'success',
+      };
+
+      // Mock cache miss
+      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
+      mockNasaApiService.getEpicImages.mockResolvedValue(expectedImages);
+      fsPromises.mkdir.mockResolvedValue(undefined);
+      fsPromises.writeFile.mockRejectedValue(new Error('Write failed'));
+
+      const result = await service.getEpicImages(query);
+
+      expect(result).toEqual(expectedResponse);
+      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', true);
     });
   });
 

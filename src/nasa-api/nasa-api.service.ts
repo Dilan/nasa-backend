@@ -1,126 +1,132 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import * as fs from 'fs';
 
 export interface EpicImage {
   identifier: string;
   caption: string;
   image: string;
   version: string;
-  centroid_coordinates: {
-    lat: number;
-    lon: number;
-  };
-  dscovr_j2000_position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  lunar_j2000_position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  sun_j2000_position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  attitude_quaternions: {
-    q0: number;
-    q1: number;
-    q2: number;
-    q3: number;
-  };
   date: string;
-  coords: {
-    centroid_coordinates: {
-      lat: number;
-      lon: number;
-    };
-    dscovr_j2000_position: {
-      x: number;
-      y: number;
-      z: number;
-    };
-    lunar_j2000_position: {
-      x: number;
-      y: number;
-      z: number;
-    };
-    sun_j2000_position: {
-      x: number;
-      y: number;
-      z: number;
-    };
-    attitude_quaternions: {
-      q0: number;
-      q1: number;
-      q2: number;
-      q3: number;
-    };
-  };
 }
 
 @Injectable()
 export class NasaApiService {
   private readonly logger = new Logger(NasaApiService.name);
-  private readonly epicBaseUrl = 'https://api.nasa.gov/EPIC/api';
+  private readonly baseUrl = 'https://api.nasa.gov';
   private readonly apiKey: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('NASA_API_KEY') || 'DEMO_KEY';
+    this.apiKey = this.configService.get<string>('DEMO_KEY');
   }
 
   // EPIC API Methods
-  async getEpicImages(date?: string, natural: boolean = true): Promise<EpicImage[]> {
+  async getEpicImages(date: string, natural: boolean = true): Promise<{ data: EpicImage[], status: string, limit: number, remaining: number }> {
     try {
-      const targetDate = date || this.getDefaultDate();
+      const targetDate = date;
       const type = natural ? 'natural' : 'enhanced';
 
-      const url = `${this.epicBaseUrl}/${type}/date/${targetDate}`;
+      const url = `${this.baseUrl}/EPIC/api/${type}/date/${targetDate}`;
       const params = { api_key: this.apiKey };
 
       this.logger.log(`Fetching EPIC images for date: ${targetDate}, type: ${type}`);
 
       const response = await axios.get<EpicImage[]>(url, { params });
 
+      const remaining = response.headers['x-ratelimit-remaining'];
+      const limit = response.headers['x-ratelimit-limit'];
+      this.logger.log(`Remaining requests: ${remaining} out of ${limit}`);
       this.logger.log(`Retrieved ${response.data.length} EPIC images`);
-      return response.data;
+
+      return {
+        data: response.data,
+        status: 'success',
+        limit: parseInt(limit),
+        remaining: parseInt(remaining),
+      };
     } catch (error) {
       this.logger.error('Error fetching EPIC images:', error.message);
       throw error;
     }
   }
 
-  async getEpicImageByIdentifier(image: string, date: string): Promise<string> {
+  // https://api.nasa.gov/EPIC/archive/natural/2025/07/15/png/epic_1b_20250715060350.png?api_key=TOtICCD1wYJXzVz37hDEc1nrJ2Pju2BQzZDMTmho
+  // https://api.nasa.gov/EPIC/archive/natural/2020/07/15/png/epic_1b_20200715001752.png?api_key=TOtICCD1wYJXzVz37hDEc1nrJ2Pju2BQzZDMTmho
+  async saveEpicImageByIdentifier(imageIdentifier: string, date: string, savePath: string, retryCount: number = 0): Promise<string> {
+    const maxRetries = 3;
+    
     try {
       // replace date to YYYY/MM/DD
       const formatDate = date.replace(/-/g, '/');
-      const url = `${this.epicBaseUrl}/archive/natural/${formatDate}/png/${image}`;
+      const url = `${this.baseUrl}/EPIC/archive/natural/${formatDate}/png/${imageIdentifier}.png`;
       const params = { api_key: this.apiKey };
 
-      this.logger.log(`Fetching EPIC image with identifier: ${image}`);
+      this.logger.log(`Fetching EPIC image with identifier: ${imageIdentifier}${retryCount > 0 ? ` (retry ${retryCount})` : ''}`);
 
-      // get PNG image from url
-      const response = await axios.get(url, { params, responseType: 'arraybuffer' });
+      // axios stream to writer file with proper completion handling
+      const writer = fs.createWriteStream(savePath);
 
-      // convert to base64
-      const base64 = Buffer.from(response.data, 'binary').toString('base64');
+      console.log(url + '?api_key=' + this.apiKey);
+      
+      const response = await axios.get(url, { 
+        params, 
+        responseType: 'stream',
+        timeout: 30000, // 30 second timeout
+        maxContentLength: 50 * 1024 * 1024, // 50MB max
+      });
+      
+      // Return a promise that resolves when the stream is complete
+      return new Promise((resolve, reject) => {
+        const stream = response.data;
+        
+        stream.on('error', (error) => {
+          this.logger.error(`Stream error for ${imageIdentifier}:`, error.message);
+          writer.end();
+          reject(error);
+        });
 
-      return base64;
+        writer.on('error', (error) => {
+          this.logger.error(`Write error for ${imageIdentifier}:`, error.message);
+          reject(error);
+        });
+
+        writer.on('finish', () => {
+          this.logger.log(`Successfully saved EPIC image: ${imageIdentifier}`);
+          resolve(savePath);
+        });
+
+        // Pipe the stream and end the writer when done
+        stream.pipe(writer);
+      });
     } catch (error) {
       this.logger.error(
-        'Error fetching EPIC image by identifier:',
-        error.message,
+        `Error fetching EPIC image by identifier: ${imageIdentifier}, date: ${date}, error: ${error.message}`,
       );
-      throw error;
+      
+      // Clean up partial file if it exists
+      try {
+        if (fs.existsSync(savePath)) {
+          fs.unlinkSync(savePath);
+        }
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+      
+      // Retry logic
+      if (retryCount < maxRetries) {
+        this.logger.log(`Retrying download for ${imageIdentifier} (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+        return this.saveEpicImageByIdentifier(imageIdentifier, date, savePath, retryCount + 1);
+      }
+      
+      throw new NotFoundException('Image not found after multiple attempts');
     }
   }
 
   async getLatestEpicImages(): Promise<EpicImage[]> {
     try {
-      const url = `${this.epicBaseUrl}/natural/latest`;
+      const url = `${this.baseUrl}/EPIC/api/natural/latest`;
       const params = { api_key: this.apiKey };
 
       this.logger.log('Fetching latest EPIC images');
@@ -133,16 +139,5 @@ export class NasaApiService {
       this.logger.error('Error fetching latest EPIC images:', error.message);
       throw error;
     }
-  }
-
-  // Add more NASA API endpoints here as needed
-  // For example: APOD, Mars Rover, etc.
-
-  private getDefaultDate(): string {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
   }
 } 
