@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "NASA-API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,0 +1,19 @@
+meta {
+  name: EPIC natural/available
+  type: http
+  seq: 3
+}
+
+get {
+  url: https://api.nasa.gov/EPIC/api/natural/available?api_key={{DEMO_KEY}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  api_key: {{DEMO_KEY}}
+}
+
+settings {
+  encodeUrl: true
+}

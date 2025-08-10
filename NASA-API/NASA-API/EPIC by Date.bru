@@ -1,0 +1,19 @@
+meta {
+  name: EPIC by Date
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://api.nasa.gov/EPIC/api/natural/date/2019-05-30?api_key={{DEMO_KEY}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  api_key: {{DEMO_KEY}}
+}
+
+settings {
+  encodeUrl: true
+}

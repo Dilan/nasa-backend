@@ -1,0 +1,12 @@
+services:
+  app:
+    container_name: nasa-backend
+    image: ghcr.io/markscooterrepair/nasa-backend:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "4200:4200"
+    restart: unless-stopped
