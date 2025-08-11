@@ -11,6 +11,16 @@ export interface EpicImage {
   date: string;
 }
 
+export interface NasaApiResponse {
+  data: any;
+  status: string;
+  limit: number;
+  remaining: number;
+}
+
+// natural or enhanced
+export type EpicType = 'natural' | 'enhanced';
+
 @Injectable()
 export class NasaApiService {
   private readonly logger = new Logger(NasaApiService.name);
@@ -21,13 +31,30 @@ export class NasaApiService {
     this.apiKey = this.configService.get<string>('DEMO_KEY');
   }
 
+  // type could be "natural" or "enhanced"
+  // data is an array of dates
+  async getAvailableDates(type: EpicType = 'natural'): Promise<NasaApiResponse> {
+    const url = `${this.baseUrl}/EPIC/api/${type}/available`;
+    const params = { api_key: this.apiKey };
+    const response = await axios.get<string[]>(url, { params });
+    
+    const remaining = response.headers['x-ratelimit-remaining'];
+    const limit = response.headers['x-ratelimit-limit'];
+    
+    return {
+      data: response.data,
+      status: 'success',
+      limit: parseInt(limit),
+      remaining: parseInt(remaining),
+    };
+  }
+
   // EPIC API Methods
-  async getEpicImages(date: string, natural: boolean = true): Promise<{ data: EpicImage[], status: string, limit: number, remaining: number }> {
+  async getEpicImages(date: string | undefined, type: EpicType = 'natural'): Promise<{ data: EpicImage[], status: string, limit: number, remaining: number }> {
     try {
       const targetDate = date;
-      const type = natural ? 'natural' : 'enhanced';
 
-      const url = `${this.baseUrl}/EPIC/api/${type}/date/${targetDate}`;
+      const url = `${this.baseUrl}/EPIC/api/${type}` + (date ? `/date/${targetDate}` : '');
       const params = { api_key: this.apiKey };
 
       this.logger.log(`Fetching EPIC images for date: ${targetDate}, type: ${type}`);
@@ -67,7 +94,7 @@ export class NasaApiService {
       // axios stream to writer file with proper completion handling
       const writer = fs.createWriteStream(savePath);
 
-      console.log(url + '?api_key=' + this.apiKey);
+      // console.log(url + '?api_key=' + this.apiKey);
       
       const response = await axios.get(url, { 
         params, 
@@ -121,23 +148,6 @@ export class NasaApiService {
       }
       
       throw new NotFoundException('Image not found after multiple attempts');
-    }
-  }
-
-  async getLatestEpicImages(): Promise<EpicImage[]> {
-    try {
-      const url = `${this.baseUrl}/EPIC/api/natural/latest`;
-      const params = { api_key: this.apiKey };
-
-      this.logger.log('Fetching latest EPIC images');
-
-      const response = await axios.get<EpicImage[]>(url, { params });
-
-      this.logger.log(`Retrieved ${response.data.length} latest EPIC images`);
-      return response.data;
-    } catch (error) {
-      this.logger.error('Error fetching latest EPIC images:', error.message);
-      throw error;
     }
   }
 } 

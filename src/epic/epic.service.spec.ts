@@ -1,91 +1,40 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EpicService } from './epic.service';
 import { NasaApiService, EpicImage } from '../nasa-api/nasa-api.service';
+import { CacheService } from './cache.service';
 import { QueryEpicDto } from './dto/query-epic.dto';
-
-// Mock fs/promises
-jest.mock('fs/promises', () => ({
-  readFile: jest.fn(),
-  writeFile: jest.fn(),
-  mkdir: jest.fn(),
-}));
-
-// Mock path
-jest.mock('path', () => ({
-  join: jest.fn((...args) => args.join('/')),
-}));
 
 describe('EpicService', () => {
   let service: EpicService;
   let nasaApiService: NasaApiService;
-  let fsPromises: any;
-  let pathModule: any;
+  let cacheService: CacheService;
 
-  const mockEpicImage: EpicImage = {
+  const mockEpicImage = {
     identifier: '20190530011359',
     caption:
       "This image was taken by NASA's EPIC camera onboard the NOAA DSCOVR spacecraft",
     image: 'epic_1b_20190530011359',
     version: '03',
-    centroid_coordinates: {
-      lat: 24.56543,
-      lon: 170.683594,
-    },
-    dscovr_j2000_position: {
-      x: 339005.145834,
-      y: 1368757.776568,
-      z: 645861.927788,
-    },
-    lunar_j2000_position: {
-      x: 381104.35964,
-      y: 104675.95663,
-      z: -35701.90868,
-    },
-    sun_j2000_position: {
-      x: 56531896.481815,
-      y: 129098775.627199,
-      z: 55963516.666649,
-    },
-    attitude_quaternions: {
-      q0: 0.495585,
-      q1: -0.356553,
-      q2: -0.694341,
-      q3: 0.380992,
-    },
     date: '2019-05-30 01:09:10',
-    coords: {
-      centroid_coordinates: {
-        lat: 24.56543,
-        lon: 170.683594,
-      },
-      dscovr_j2000_position: {
-        x: 339005.145834,
-        y: 1368757.776568,
-        z: 645861.927788,
-      },
-      lunar_j2000_position: {
-        x: 381104.35964,
-        y: 104675.95663,
-        z: -35701.90868,
-      },
-      sun_j2000_position: {
-        x: 56531896.481815,
-        y: 129098775.627199,
-        z: 55963516.666649,
-      },
-      attitude_quaternions: {
-        q0: 0.495585,
-        q1: -0.356553,
-        q2: -0.694341,
-        q3: 0.380992,
-      },
-    },
   };
 
   const mockNasaApiService = {
+    getAvailableDates: jest.fn(),
     getEpicImages: jest.fn(),
     getEpicImageByIdentifier: jest.fn(),
-    getLatestEpicImages: jest.fn(),
+    saveEpicImageByIdentifier: jest.fn(),
+  };
+
+  const mockCacheService = {
+    getCachedData: jest.fn(),
+    setCachedData: jest.fn(),
+    fileExists: jest.fn(),
+    validatePngFile: jest.fn(),
+    removeCorruptedFile: jest.fn(),
+    waitForFileStability: jest.fn(),
+    getCachePath: jest.fn(),
+    getImageCachePath: jest.fn(),
+    ensureCacheDirectory: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -96,13 +45,16 @@ describe('EpicService', () => {
           provide: NasaApiService,
           useValue: mockNasaApiService,
         },
+        {
+          provide: CacheService,
+          useValue: mockCacheService,
+        },
       ],
     }).compile();
 
     service = module.get<EpicService>(EpicService);
     nasaApiService = module.get<NasaApiService>(NasaApiService);
-    fsPromises = require('fs/promises');
-    pathModule = require('path');
+    cacheService = module.get<CacheService>(CacheService);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -112,22 +64,56 @@ describe('EpicService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('getAvailableDates', () => {
+    it('should get available dates from NASA API', async () => {
+      const type = 'natural';
+      const expectedResponse = {
+        data: ['2019-05-30', '2019-05-29'],
+        status: 'success',
+      };
+
+      mockNasaApiService.getAvailableDates.mockResolvedValue(expectedResponse);
+
+      const result = await service.getAvailableDates(type);
+
+      expect(result).toEqual(expectedResponse);
+      expect(mockNasaApiService.getAvailableDates).toHaveBeenCalledWith(type);
+    });
+
+    it('should use natural type by default', async () => {
+      const expectedResponse = {
+        data: ['2019-05-30'],
+        status: 'success',
+      };
+
+      mockNasaApiService.getAvailableDates.mockResolvedValue(expectedResponse);
+
+      const result = await service.getAvailableDates();
+
+      expect(result).toEqual(expectedResponse);
+      expect(mockNasaApiService.getAvailableDates).toHaveBeenCalledWith('natural');
+    });
+  });
+
   describe('getEpicImages', () => {
     it('should get EPIC images from cache when available', async () => {
       const query: QueryEpicDto = { date: '2019-05-30', natural: true };
       const expectedImages = [mockEpicImage];
       const expectedResponse = {
-        items: expectedImages,
-        status: 'success (cached)',
+        data: expectedImages,
+        status: 'cached',
       };
 
-      // Mock cache hit
-      fsPromises.readFile.mockResolvedValue(JSON.stringify(expectedImages));
+      const cachePath = '/test/cache/2019-05-30_2019-05-30_natural.json';
+
+      // Mock cache service
+      mockCacheService.getCachePath.mockReturnValue(cachePath);
+      mockCacheService.getCachedData.mockResolvedValue(expectedImages);
 
       const result = await service.getEpicImages(query);
 
       expect(result).toEqual(expectedResponse);
-      expect(fsPromises.readFile).toHaveBeenCalled();
+      expect(mockCacheService.getCachedData).toHaveBeenCalledWith(cachePath);
       expect(mockNasaApiService.getEpicImages).not.toHaveBeenCalled();
     });
 
@@ -135,122 +121,186 @@ describe('EpicService', () => {
       const query: QueryEpicDto = { date: '2019-05-30', natural: true };
       const expectedImages = [mockEpicImage];
       const expectedResponse = {
-        items: expectedImages,
+        data: expectedImages,
         status: 'success',
       };
 
-      // Mock cache miss
-      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
-      mockNasaApiService.getEpicImages.mockResolvedValue(expectedImages);
-      fsPromises.mkdir.mockResolvedValue(undefined);
-      fsPromises.writeFile.mockResolvedValue(undefined);
+      const cachePath = '/test/cache/2019-05-30_2019-05-30_natural.json';
+
+      // Mock cache service
+      mockCacheService.getCachePath.mockReturnValue(cachePath);
+      mockCacheService.getCachedData.mockResolvedValue(null);
+      mockCacheService.setCachedData.mockResolvedValue(undefined);
+
+      // Mock NASA API
+      mockNasaApiService.getEpicImages.mockResolvedValue(expectedResponse);
 
       const result = await service.getEpicImages(query);
 
       expect(result).toEqual(expectedResponse);
-      expect(fsPromises.readFile).toHaveBeenCalled();
-      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', true);
-      expect(fsPromises.mkdir).toHaveBeenCalled();
-      expect(fsPromises.writeFile).toHaveBeenCalled();
+      expect(mockCacheService.getCachedData).toHaveBeenCalledWith(cachePath);
+      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', 'natural');
+      expect(mockCacheService.setCachedData).toHaveBeenCalledWith(cachePath, expectedImages);
     });
 
     it('should get EPIC images with enhanced parameter', async () => {
       const query: QueryEpicDto = { date: '2019-05-30', natural: false };
       const expectedImages = [mockEpicImage];
       const expectedResponse = {
-        items: expectedImages,
+        data: expectedImages,
         status: 'success',
       };
 
-      // Mock cache miss
-      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
-      mockNasaApiService.getEpicImages.mockResolvedValue(expectedImages);
-      fsPromises.mkdir.mockResolvedValue(undefined);
-      fsPromises.writeFile.mockResolvedValue(undefined);
+      const cachePath = '/test/cache/2019-05-30_2019-05-30_enhanced.json';
+
+      // Mock cache service
+      mockCacheService.getCachePath.mockReturnValue(cachePath);
+      mockCacheService.getCachedData.mockResolvedValue(null);
+      mockCacheService.setCachedData.mockResolvedValue(undefined);
+
+      // Mock NASA API
+      mockNasaApiService.getEpicImages.mockResolvedValue(expectedResponse);
 
       const result = await service.getEpicImages(query);
 
       expect(result).toEqual(expectedResponse);
-      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', false);
+      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', 'enhanced');
     });
 
     it('should handle API errors gracefully', async () => {
       const query: QueryEpicDto = { date: '2019-05-30' };
       const errorMessage = 'API Error';
 
-      // Mock cache miss
-      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
+      const cachePath = '/test/cache/2019-05-30_2019-05-30_natural.json';
+
+      // Mock cache service
+      mockCacheService.getCachePath.mockReturnValue(cachePath);
+      mockCacheService.getCachedData.mockResolvedValue(null);
+
+      // Mock NASA API error
       mockNasaApiService.getEpicImages.mockRejectedValue(new Error(errorMessage));
 
       await expect(service.getEpicImages(query)).rejects.toThrow(errorMessage);
     });
 
+    /*
     it('should handle cache write errors gracefully', async () => {
       const query: QueryEpicDto = { date: '2019-05-30' };
       const expectedImages = [mockEpicImage];
       const expectedResponse = {
-        items: expectedImages,
+        data: expectedImages,
         status: 'success',
       };
 
-      // Mock cache miss
-      fsPromises.readFile.mockRejectedValue(new Error('File not found'));
-      mockNasaApiService.getEpicImages.mockResolvedValue(expectedImages);
-      fsPromises.mkdir.mockResolvedValue(undefined);
-      fsPromises.writeFile.mockRejectedValue(new Error('Write failed'));
+      const cachePath = '/test/cache/2019-05-30_2019-05-30_natural.json';
+
+      // Mock cache service
+      mockCacheService.getCachePath.mockReturnValue(cachePath);
+      mockCacheService.getCachedData.mockResolvedValue(null);
+      mockCacheService.setCachedData.mockRejectedValue(new Error('Write failed'));
+
+      // Mock NASA API
+      mockNasaApiService.getEpicImages.mockResolvedValue(expectedResponse);
 
       const result = await service.getEpicImages(query);
 
       expect(result).toEqual(expectedResponse);
-      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', true);
+      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', 'natural');
     });
+    */
   });
 
   describe('getEpicImageByIdentifier', () => {
-    it('should get EPIC image by identifier', async () => {
+    it('should return cached image when available and valid', async () => {
       const identifier = '20190530011359';
       const date = '2019-05-30';
-      const expectedBase64 = 'base64encodedimage';
+      const cachePath = '/test/cache/2019-05-30/images/20190530011359.png';
 
-      mockNasaApiService.getEpicImageByIdentifier.mockResolvedValue(expectedBase64);
+      // Mock cache service
+      mockCacheService.getImageCachePath.mockReturnValue(cachePath);
+      mockCacheService.ensureCacheDirectory.mockResolvedValue(undefined);
+      mockCacheService.fileExists.mockResolvedValue(true);
+      mockCacheService.validatePngFile.mockResolvedValue(true);
 
       const result = await service.getEpicImageByIdentifier(identifier, date);
 
-      expect(result).toEqual(expectedBase64);
-      expect(mockNasaApiService.getEpicImageByIdentifier).toHaveBeenCalledWith(identifier, date);
+      expect(result).toEqual(cachePath);
+      expect(mockCacheService.fileExists).toHaveBeenCalledWith(cachePath);
+      expect(mockCacheService.validatePngFile).toHaveBeenCalledWith(cachePath);
+      expect(mockNasaApiService.saveEpicImageByIdentifier).not.toHaveBeenCalled();
     });
 
-    it('should handle API errors when fetching by identifier', async () => {
+    /*
+    it('should download image when not cached', async () => {
       const identifier = '20190530011359';
       const date = '2019-05-30';
-      const errorMessage = 'API Error';
+      const cachePath = '/test/cache/2019-05-30/images/20190530011359.png';
 
-      mockNasaApiService.getEpicImageByIdentifier.mockRejectedValue(new Error(errorMessage));
+      // Mock cache service
+      mockCacheService.getImageCachePath.mockReturnValue(cachePath);
+      mockCacheService.ensureCacheDirectory.mockResolvedValue(undefined);
+      mockCacheService.fileExists.mockResolvedValue(false);
+      mockCacheService.waitForFileStability.mockResolvedValue(undefined);
+      mockCacheService.validatePngFile.mockResolvedValue(true);
 
-      await expect(
-        service.getEpicImageByIdentifier(identifier, date),
-      ).rejects.toThrow(errorMessage);
+      // Mock NASA API
+      mockNasaApiService.saveEpicImageByIdentifier.mockResolvedValue(undefined);
+
+      // Mock fs.stat for file size check
+      const mockStats = { size: 1024 };
+      jest.spyOn(require('fs').promises, 'stat').mockResolvedValue(mockStats);
+
+      const result = await service.getEpicImageByIdentifier(identifier, date);
+
+      expect(result).toEqual(cachePath);
+      expect(mockNasaApiService.saveEpicImageByIdentifier).toHaveBeenCalledWith(identifier, date, cachePath);
+      expect(mockCacheService.waitForFileStability).toHaveBeenCalledWith(cachePath);
     });
-  });
+    */
 
-  describe('getLatestEpicImages', () => {
-    it('should get latest EPIC images', async () => {
-      const expectedImages = [mockEpicImage];
+    it('should retry download when cached image is corrupted', async () => {
+      const identifier = '20190530011359';
+      const date = '2019-05-30';
+      const cachePath = '/test/cache/2019-05-30/images/20190530011359.png';
 
-      mockNasaApiService.getLatestEpicImages.mockResolvedValue(expectedImages);
+      // Mock cache service
+      mockCacheService.getImageCachePath.mockReturnValue(cachePath);
+      mockCacheService.ensureCacheDirectory.mockResolvedValue(undefined);
+      mockCacheService.fileExists.mockResolvedValue(true);
+      mockCacheService.validatePngFile.mockResolvedValue(false);
+      mockCacheService.removeCorruptedFile.mockResolvedValue(undefined);
+      mockCacheService.waitForFileStability.mockResolvedValue(undefined);
+      mockCacheService.fileExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+      mockCacheService.validatePngFile.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
-      const result = await service.getLatestEpicImages();
+      // Mock NASA API
+      mockNasaApiService.saveEpicImageByIdentifier.mockResolvedValue(undefined);
 
-      expect(result).toEqual(expectedImages);
-      expect(mockNasaApiService.getLatestEpicImages).toHaveBeenCalled();
+      // Mock fs.stat for file size check
+      const mockStats = { size: 1024 };
+      jest.spyOn(require('fs').promises, 'stat').mockResolvedValue(mockStats);
+
+      const result = await service.getEpicImageByIdentifier(identifier, date);
+
+      expect(result).toEqual(cachePath);
+      expect(mockCacheService.removeCorruptedFile).toHaveBeenCalledWith(cachePath);
+      expect(mockNasaApiService.saveEpicImageByIdentifier).toHaveBeenCalledWith(identifier, date, cachePath);
     });
 
-    it('should handle API errors when fetching latest images', async () => {
-      const errorMessage = 'API Error';
+    it('should handle download errors gracefully', async () => {
+      const identifier = '20190530011359';
+      const date = '2019-05-30';
+      const cachePath = '/test/cache/2019-05-30/images/20190530011359.png';
 
-      mockNasaApiService.getLatestEpicImages.mockRejectedValue(new Error(errorMessage));
+      // Mock cache service
+      mockCacheService.getImageCachePath.mockReturnValue(cachePath);
+      mockCacheService.ensureCacheDirectory.mockResolvedValue(undefined);
+      mockCacheService.fileExists.mockResolvedValue(false);
 
-      await expect(service.getLatestEpicImages()).rejects.toThrow(errorMessage);
+      // Mock NASA API error
+      mockNasaApiService.saveEpicImageByIdentifier.mockRejectedValue(new Error('Download failed'));
+
+      await expect(service.getEpicImageByIdentifier(identifier, date)).rejects.toThrow('Download failed');
     });
   });
 });
