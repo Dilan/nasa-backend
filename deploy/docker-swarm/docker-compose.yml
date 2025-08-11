@@ -6,7 +6,7 @@ services:
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/dilan/nasa-backend:1.0}
     environment:
-      - PORT=${BACKEND_PORT:-4100}
+      - PORT=${BACKEND_PORT:-4200}
       - VERSION=${VERSION:-1.0.0}
       - DEMO_KEY=${DEMO_KEY}
 

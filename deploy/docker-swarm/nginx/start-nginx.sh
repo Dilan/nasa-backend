@@ -8,7 +8,7 @@ wait_for() {
 }
 
 sleep 1
-wait_for http://backend:4100/api/v2
+wait_for http://backend:4200/api/v1
 wait_for http://site:80
 
 echo "All services ready. Starting nginx..."
