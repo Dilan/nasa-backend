@@ -66,6 +66,7 @@ create_directories() {
     log "Creating necessary directories..."
     
     local dirs=(
+        "/opt/cache"
         "/opt/nginx/ssl"
         "/opt/certbot/www"
         "/opt/certbot/conf"

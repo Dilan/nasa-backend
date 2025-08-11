@@ -12,6 +12,9 @@ services:
 
     networks:
       - nasa_network
+    volumes:
+      - cache_data:/app/.cache
+
     deploy:
       replicas: 2
       restart_policy:
@@ -90,6 +93,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+# Volumes
+volumes:
+  cache_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/cache
 
 # Networks
 networks:
