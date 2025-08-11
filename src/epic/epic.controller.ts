@@ -59,11 +59,11 @@ export class EpicController {
     @Res() res: Response,
   ) {
     try {
-      let date = extractDateFromIdentifier(identifier);
+      const date = extractDateFromIdentifier(identifier);
       if (!date) {
         throw new NotFoundException('Invalid identifier');
       }
-      let imagePath = await this.epicService.getEpicImageByIdentifier(
+      const imagePath = await this.epicService.getEpicImageByIdentifier(
         identifier,
         date,
       );
@@ -128,7 +128,8 @@ export class EpicController {
 }
 
 const extractDateFromIdentifier = (identifier: string): string | null => {
-  const match = identifier.match(/(20\d{6})/);
+  const regex = /(20\d{6})/;
+  const match = regex.exec(identifier);
   if (!match) return null; // No date found
 
   const [year, month, day] = [

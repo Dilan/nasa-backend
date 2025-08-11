@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import * as fs from 'fs';
 
 export interface EpicImage {
@@ -38,16 +38,18 @@ export class NasaApiService {
   ): Promise<NasaApiResponse> {
     const url = `${this.baseUrl}/EPIC/api/${type}/available`;
     const params = { api_key: this.apiKey };
-    const response = await axios.get<string[]>(url, { params });
+    const response: AxiosResponse<string[]> = await axios.get<string[]>(url, {
+      params,
+    });
 
-    const remaining = response.headers['x-ratelimit-remaining'];
-    const limit = response.headers['x-ratelimit-limit'];
+    const remaining = response.headers['x-ratelimit-remaining'] as string;
+    const limit = response.headers['x-ratelimit-limit'] as string;
 
     return {
       data: response.data,
       status: 'success',
-      limit: parseInt(limit),
-      remaining: parseInt(remaining),
+      limit: parseInt(limit, 10),
+      remaining: parseInt(remaining, 10),
     };
   }
 
@@ -73,21 +75,27 @@ export class NasaApiService {
         `Fetching EPIC images for date: ${targetDate}, type: ${type}`,
       );
 
-      const response = await axios.get<EpicImage[]>(url, { params });
+      const response: AxiosResponse<EpicImage[]> = await axios.get<EpicImage[]>(
+        url,
+        { params },
+      );
 
-      const remaining = response.headers['x-ratelimit-remaining'];
-      const limit = response.headers['x-ratelimit-limit'];
+      const remaining = response.headers['x-ratelimit-remaining'] as string;
+      const limit = response.headers['x-ratelimit-limit'] as string;
       this.logger.log(`Remaining requests: ${remaining} out of ${limit}`);
       this.logger.log(`Retrieved ${response.data.length} EPIC images`);
 
       return {
         data: response.data,
         status: 'success',
-        limit: parseInt(limit),
-        remaining: parseInt(remaining),
+        limit: parseInt(limit, 10),
+        remaining: parseInt(remaining, 10),
       };
     } catch (error) {
-      this.logger.error('Error fetching EPIC images:', error.message);
+      this.logger.error(
+        'Error fetching EPIC images:',
+        (error as Error).message,
+      );
       throw error;
     }
   }
@@ -98,7 +106,7 @@ export class NasaApiService {
     imageIdentifier: string,
     date: string,
     savePath: string,
-    retryCount: number = 0,
+    retryCount = 0,
   ): Promise<string> {
     const maxRetries = 3;
 
@@ -126,23 +134,23 @@ export class NasaApiService {
 
       // Return a promise that resolves when the stream is complete
       return new Promise((resolve, reject) => {
-        const stream = response.data;
+        const stream = response.data as NodeJS.ReadableStream;
 
-        stream.on('error', (error) => {
+        stream.on('error', (error: Error) => {
           this.logger.error(
             `Stream error for ${imageIdentifier}:`,
             error.message,
           );
           writer.end();
-          reject(error);
+          reject(new Error(error.message));
         });
 
-        writer.on('error', (error) => {
+        writer.on('error', (error: Error) => {
           this.logger.error(
             `Write error for ${imageIdentifier}:`,
             error.message,
           );
-          reject(error);
+          reject(new Error(error.message));
         });
 
         writer.on('finish', () => {
@@ -155,7 +163,7 @@ export class NasaApiService {
       });
     } catch (error) {
       this.logger.error(
-        `Error fetching EPIC image by identifier: ${imageIdentifier}, date: ${date}, error: ${error.message}`,
+        `Error fetching EPIC image by identifier: ${imageIdentifier}, date: ${date}, error: ${(error as Error).message}`,
       );
 
       // Clean up partial file if it exists
@@ -163,7 +171,7 @@ export class NasaApiService {
         if (fs.existsSync(savePath)) {
           fs.unlinkSync(savePath);
         }
-      } catch (cleanupError) {
+      } catch {
         // Ignore cleanup errors
       }
 

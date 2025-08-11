@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
-export interface CacheOptions {
+interface CacheOptions {
   cacheDir?: string;
   maxWaitMs?: number;
 }
@@ -125,7 +125,7 @@ export class CacheService {
   /**
    * Get cache path for a specific date and type
    */
-  getCachePath(date: string, type: string, extension: string = 'json'): string {
+  getCachePath(date: string, type: string, extension = 'json'): string {
     return path.join(this.cacheDir, date, `${date}_${type}.${extension}`);
   }
 
