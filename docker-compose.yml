@@ -1,7 +1,7 @@
 services:
   app:
     container_name: nasa-backend
-    image: ghcr.io/markscooterrepair/nasa-backend:1.0
+    image: ghcr.io/dilan/nasa-backend:1.0
     build:
       context: .
       dockerfile: Dockerfile

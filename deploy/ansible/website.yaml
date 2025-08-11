@@ -1,0 +1,111 @@
+- name: Prepare server
+  hosts: all
+  become: yes
+  tasks:
+    - name: Print target host
+      debug:
+        msg: "Configuring server at {{ ansible_host }}"
+    
+    - name: Check if ansible_host is empty
+      fail:
+        msg: "ansible_host is empty"
+      when: ansible_host is not defined
+
+    # Create user 'mle': -------------------------------------------------------
+    - name: Create group 'mle'
+      ansible.builtin.group:
+        name: mle
+        state: present
+        
+    - name: Create user 'mle'
+      ansible.builtin.user:
+        name: mle
+        group: mle
+        state: present
+        create_home: yes
+        shell: /bin/bash
+    
+    # mle must be in sudoers
+    - name: Add mle to sudoers
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "mle ALL=(ALL) NOPASSWD: ALL"
+        state: present
+
+    # -------------------------------------------------------------------------
+
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        pkg:
+        - ca-certificates
+        - curl
+        - make
+        state: latest
+        update_cache: yes
+
+    - name: Install Keys
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+
+    - name: Add the repository to Apt sources
+      shell: |
+        echo \
+          "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    - name: Install Docker
+      apt:
+        pkg:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Add mle user to docker group
+      user:
+        name: mle
+        groups: docker
+        append: yes
+
+    - name: Make sure directories exist /opt and apply permissions
+      file:
+        path: /opt/
+        state: directory
+        owner: mle
+        group: mle
+        mode: '0755'
+
+    - name: Create ~/.ssh directory
+      file:
+        path: /home/mle/.ssh
+        state: directory
+        owner: mle
+        group: mle
+        mode: '0700'
+    
+    - name: Copy authorized_keys from ubuntu to mle
+      copy:
+        src: /home/ubuntu/.ssh/authorized_keys
+        dest: /home/mle/.ssh/authorized_keys
+        remote_src: yes
+        owner: mle
+        group: mle
+        mode: '0600'
+    
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg: |
+          Preparation is complete.

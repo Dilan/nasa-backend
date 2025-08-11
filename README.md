@@ -44,3 +44,7 @@ test coverage:
 
   $ npm run test:cov
 
+## Ansible (deployment)
+
+  ansible-playbook -i "50.17.39.22," "./ansible/website.yaml" \
+          -u ubuntu --private-key ~/.ssh/nimbleseal
