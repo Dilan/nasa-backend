@@ -66,7 +66,6 @@ create_directories() {
     log "Creating necessary directories..."
     
     local dirs=(
-        "/opt/postgres/data"
         "/opt/nginx/ssl"
         "/opt/certbot/www"
         "/opt/certbot/conf"
