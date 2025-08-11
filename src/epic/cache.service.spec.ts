@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { CacheService } from './cache.service';
 
@@ -49,7 +48,7 @@ describe('CacheService', () => {
     }).compile();
 
     service = module.get<CacheService>(CacheService);
-    
+
     // Clear all mocks before each test
     jest.clearAllMocks();
   });
@@ -61,16 +60,20 @@ describe('CacheService', () => {
     it('should return cached data when file exists and is valid JSON', async () => {
       // Mock fileExists to return true
       jest.spyOn(service, 'fileExists').mockResolvedValue(true);
-      
+
       // Mock fs.readFile to return valid JSON string
-      (fs.readFile as jest.Mock).mockResolvedValue(JSON.stringify(mockCachedData));
+      (fs.readFile as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockCachedData),
+      );
 
       const result = await service.getCachedData(mockCachePath);
 
       expect(result).toEqual(mockCachedData);
       expect(service.fileExists).toHaveBeenCalledWith(mockCachePath);
       expect(fs.readFile).toHaveBeenCalledWith(mockCachePath, 'utf-8');
-      expect(mockLogger.log).toHaveBeenCalledWith(`Returning cached data from: ${mockCachePath}`);
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        `Returning cached data from: ${mockCachePath}`,
+      );
     });
 
     it('should return null when file does not exist', async () => {
@@ -88,7 +91,7 @@ describe('CacheService', () => {
     it('should return null and log warning when file read fails', async () => {
       // Mock fileExists to return true
       jest.spyOn(service, 'fileExists').mockResolvedValue(true);
-      
+
       // Mock fs.readFile to throw an error
       const mockError = new Error('File read error');
       (fs.readFile as jest.Mock).mockRejectedValue(mockError);
@@ -100,14 +103,14 @@ describe('CacheService', () => {
       expect(fs.readFile).toHaveBeenCalledWith(mockCachePath, 'utf-8');
       expect(mockLogger.warn).toHaveBeenCalledWith(
         `Error reading cache from ${mockCachePath}:`,
-        mockError.message
+        mockError.message,
       );
     });
 
     it('should return null and log warning when JSON parsing fails', async () => {
       // Mock fileExists to return true
       jest.spyOn(service, 'fileExists').mockResolvedValue(true);
-      
+
       // Mock fs.readFile to return invalid JSON string
       (fs.readFile as jest.Mock).mockResolvedValue('invalid json content');
 
@@ -118,7 +121,7 @@ describe('CacheService', () => {
       expect(fs.readFile).toHaveBeenCalledWith(mockCachePath, 'utf-8');
       expect(mockLogger.warn).toHaveBeenCalledWith(
         `Error reading cache from ${mockCachePath}:`,
-        expect.any(String)
+        expect.any(String),
       );
     });
 
@@ -134,19 +137,22 @@ describe('CacheService', () => {
       expect(fs.readFile).not.toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalledWith(
         `Error reading cache from ${mockCachePath}:`,
-        mockError.message
+        mockError.message,
       );
     });
 
     it('should handle generic type correctly', async () => {
       // Mock fileExists to return true
       jest.spyOn(service, 'fileExists').mockResolvedValue(true);
-      
+
       // Mock fs.readFile to return valid JSON string
-      (fs.readFile as jest.Mock).mockResolvedValue(JSON.stringify(mockCachedData));
+      (fs.readFile as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockCachedData),
+      );
 
       // Test with explicit generic type
-      const result = await service.getCachedData<typeof mockCachedData>(mockCachePath);
+      const result =
+        await service.getCachedData<typeof mockCachedData>(mockCachePath);
 
       expect(result).toEqual(mockCachedData);
       expect(typeof result).toBe('object');
@@ -157,7 +163,7 @@ describe('CacheService', () => {
     it('should handle empty JSON object', async () => {
       // Mock fileExists to return true
       jest.spyOn(service, 'fileExists').mockResolvedValue(true);
-      
+
       // Mock fs.readFile to return empty JSON object
       (fs.readFile as jest.Mock).mockResolvedValue('{}');
 
@@ -166,15 +172,19 @@ describe('CacheService', () => {
       expect(result).toEqual({});
       expect(service.fileExists).toHaveBeenCalledWith(mockCachePath);
       expect(fs.readFile).toHaveBeenCalledWith(mockCachePath, 'utf-8');
-      expect(mockLogger.log).toHaveBeenCalledWith(`Returning cached data from: ${mockCachePath}`);
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        `Returning cached data from: ${mockCachePath}`,
+      );
     });
 
     it('should handle array data correctly', async () => {
       // Mock fileExists to return true
       jest.spyOn(service, 'fileExists').mockResolvedValue(true);
-      
+
       const mockArrayData = ['item1', 'item2', 'item3'];
-      (fs.readFile as jest.Mock).mockResolvedValue(JSON.stringify(mockArrayData));
+      (fs.readFile as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockArrayData),
+      );
 
       const result = await service.getCachedData<string[]>(mockCachePath);
 

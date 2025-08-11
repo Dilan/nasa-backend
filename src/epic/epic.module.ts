@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { EpicService } from './epic.service';
 import { EpicController } from './epic.controller';
 import { NasaApiModule } from '../nasa-api/nasa-api.module';
@@ -12,11 +11,12 @@ import { CacheService } from './cache.service';
     EpicService,
     {
       provide: CacheService,
-      useFactory: () => new CacheService({
-        cacheDir: '.cache/epic',
-        maxWaitMs: 5000
-      })
-    }
+      useFactory: () =>
+        new CacheService({
+          cacheDir: '.cache/epic',
+          maxWaitMs: 5000,
+        }),
+    },
   ],
   exports: [EpicService],
 })

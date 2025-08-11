@@ -11,11 +11,9 @@
 Create a `.env` file in the root directory with the following variables:
 
 ```env
-# NASA API Configuration
-NASA_API_KEY=DEMO_KEY
-
-# Add your actual NASA API key here when you have one
-# NASA_API_KEY=your_actual_api_key_here
+PORT=4200
+VERSION=1.0.1
+DEMO_KEY=TOt**************mho
 ```
 
 You can get a free NASA API key from: https://api.nasa.gov/
@@ -29,22 +27,18 @@ development:
 ## API Endpoints
 
 ### EPIC Images
-- `GET /epic` - Get EPIC images for a specific date
+- `GET /api/v1/epic/available-dates` - Get EPIC available dates with images
+- `GET /api/v1/epic` - Get EPIC images for a specific date
   - Query parameters:
     - `date` (optional): Date in YYYY-MM-DD format (defaults to today)
     - `natural` (optional): Boolean, true for natural images, false for enhanced (defaults to true)
-- `GET /epic/latest` - Get the latest EPIC images
-- `GET /epic/identifier/:identifier` - Get a specific EPIC image by identifier
+- `GET /api/v1/epic/image/:identifier` - Get EPIC image png by identifier
 
 ## Test
 
 unit tests:
   
   $ npm run test
-
-e2e tests:
-  
-  $ npm run test:e2e
 
 test coverage:
 

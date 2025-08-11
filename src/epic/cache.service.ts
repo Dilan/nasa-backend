@@ -69,7 +69,7 @@ export class CacheService {
   async waitForFileStability(filePath: string): Promise<void> {
     const startTime = Date.now();
     let lastSize = 0;
-    
+
     while (Date.now() - startTime < this.maxWaitMs) {
       try {
         const stats = await fs.stat(filePath);
@@ -78,13 +78,13 @@ export class CacheService {
           return;
         }
         lastSize = stats.size;
-        await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms before checking again
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms before checking again
       } catch {
         // File might not exist yet, wait a bit more
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
-    
+
     // If we reach here, the file might still be downloading
     this.logger.warn(`File stability timeout for: ${filePath}`);
   }
@@ -96,7 +96,9 @@ export class CacheService {
     try {
       const buffer = await fs.readFile(filePath);
       // Check PNG magic number (first 8 bytes)
-      const pngSignature = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      const pngSignature = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
       return buffer.subarray(0, 8).equals(pngSignature);
     } catch {
       return false;
@@ -113,7 +115,10 @@ export class CacheService {
         this.logger.warn(`Removed corrupted file: ${filePath}`);
       }
     } catch (error) {
-      this.logger.error(`Error removing corrupted file ${filePath}:`, error.message);
+      this.logger.error(
+        `Error removing corrupted file ${filePath}:`,
+        error.message,
+      );
     }
   }
 
@@ -137,4 +142,4 @@ export class CacheService {
   async ensureCacheDirectory(dirPath: string): Promise<void> {
     await fs.mkdir(dirPath, { recursive: true });
   }
-} 
+}

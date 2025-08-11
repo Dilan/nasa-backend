@@ -145,7 +145,7 @@ describe('EpicController', () => {
       const serviceResult = {
         data: ['2019-05-30', '2019-05-29'],
         remaining: 85,
-        limit: 100
+        limit: 100,
       };
 
       mockEpicService.getAvailableDates.mockResolvedValue(serviceResult);
@@ -154,28 +154,42 @@ describe('EpicController', () => {
 
       expect(result).toEqual(['2019-05-30', '2019-05-29']);
       expect(service.getAvailableDates).toHaveBeenCalledWith(type);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-remaining', 85);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 100);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-remaining',
+        85,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-limit',
+        100,
+      );
     });
 
     it('should default to natural type when no type provided', async () => {
       const serviceResult = {
         data: ['2019-05-30'],
         remaining: 90,
-        limit: 100
+        limit: 100,
       };
 
       mockEpicService.getAvailableDates.mockResolvedValue(serviceResult);
 
-      const result = await controller.getAvailableDates(undefined, mockResponse);
+      const result = await controller.getAvailableDates(
+        undefined,
+        mockResponse,
+      );
 
       expect(result).toEqual(['2019-05-30']);
       expect(service.getAvailableDates).toHaveBeenCalledWith('natural');
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-remaining', 90);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 100);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-remaining',
+        90,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-limit',
+        100,
+      );
     });
   });
-
 
   describe('getEpicImages', () => {
     it('should return EPIC images for a specific date and set headers', async () => {
@@ -183,7 +197,7 @@ describe('EpicController', () => {
       const serviceResult = {
         data: [mockEpicImage],
         remaining: 95,
-        limit: 100
+        limit: 100,
       };
 
       mockEpicService.getEpicImages.mockResolvedValue(serviceResult);
@@ -192,8 +206,14 @@ describe('EpicController', () => {
 
       expect(result).toEqual([mockEpicImage]);
       expect(service.getEpicImages).toHaveBeenCalledWith(query);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-remaining', 95);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 100);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-remaining',
+        95,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-limit',
+        100,
+      );
     });
 
     it('should return EPIC images with natural parameter and set headers', async () => {
@@ -201,7 +221,7 @@ describe('EpicController', () => {
       const serviceResult = {
         data: [mockEpicImage],
         remaining: 80,
-        limit: 100
+        limit: 100,
       };
 
       mockEpicService.getEpicImages.mockResolvedValue(serviceResult);
@@ -210,8 +230,14 @@ describe('EpicController', () => {
 
       expect(result).toEqual([mockEpicImage]);
       expect(service.getEpicImages).toHaveBeenCalledWith(query);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-remaining', 80);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 100);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-remaining',
+        80,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-limit',
+        100,
+      );
     });
 
     it('should return EPIC images with enhanced parameter and set headers', async () => {
@@ -219,7 +245,7 @@ describe('EpicController', () => {
       const serviceResult = {
         data: [mockEpicImage],
         remaining: 70,
-        limit: 100
+        limit: 100,
       };
 
       mockEpicService.getEpicImages.mockResolvedValue(serviceResult);
@@ -228,8 +254,14 @@ describe('EpicController', () => {
 
       expect(result).toEqual([mockEpicImage]);
       expect(service.getEpicImages).toHaveBeenCalledWith(query);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-remaining', 70);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 100);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-remaining',
+        70,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-limit',
+        100,
+      );
     });
 
     it('should return EPIC images without date parameter and set headers', async () => {
@@ -237,7 +269,7 @@ describe('EpicController', () => {
       const serviceResult = {
         data: [mockEpicImage],
         remaining: 90,
-        limit: 100
+        limit: 100,
       };
 
       mockEpicService.getEpicImages.mockResolvedValue(serviceResult);
@@ -246,8 +278,14 @@ describe('EpicController', () => {
 
       expect(result).toEqual([mockEpicImage]);
       expect(service.getEpicImages).toHaveBeenCalledWith(query);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-remaining', 90);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('x-ratelimit-limit', 100);
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-remaining',
+        90,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'x-ratelimit-limit',
+        100,
+      );
     });
 
     it('should handle service errors', async () => {
@@ -256,17 +294,15 @@ describe('EpicController', () => {
 
       mockEpicService.getEpicImages.mockRejectedValue(new Error(errorMessage));
 
-      await expect(controller.getEpicImages(query, mockResponse)).rejects.toThrow(
-        errorMessage,
-      );
+      await expect(
+        controller.getEpicImages(query, mockResponse),
+      ).rejects.toThrow(errorMessage);
       expect(service.getEpicImages).toHaveBeenCalledWith(query);
     });
   });
 
-  
   // skip this test for now:
   describe('getEpicImageByIdentifier', () => {
-
     beforeEach(() => {
       // Reset fs mocks before each test
       jest.clearAllMocks();
@@ -276,7 +312,7 @@ describe('EpicController', () => {
       const identifier = '20190530011359';
       const date = '2019-05-30';
       const mockImagePath = '/path/to/image.png';
-      
+
       // Setup fs mocks
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       (fs.statSync as jest.Mock).mockReturnValue({ size: 1024 });
@@ -291,12 +327,24 @@ describe('EpicController', () => {
 
       await controller.getEpicImageByIdentifier(identifier, mockResponse);
 
-      expect(service.getEpicImageByIdentifier).toHaveBeenCalledWith(identifier, date);
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=31536000, immutable');
-      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Length', 1024);
+      expect(service.getEpicImageByIdentifier).toHaveBeenCalledWith(
+        identifier,
+        date,
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'image/png',
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'public, max-age=31536000, immutable',
+      );
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Length',
+        1024,
+      );
     });
-/*
+    /*
     it('should handle file not found error', async () => {
       const identifier = '20190530011359';
       const date = '2019-05-30';
@@ -379,5 +427,4 @@ describe('EpicController', () => {
     });
 */
   });
-  
 });

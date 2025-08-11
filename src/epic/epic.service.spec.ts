@@ -1,14 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EpicService } from './epic.service';
-import { NasaApiService, EpicImage } from '../nasa-api/nasa-api.service';
+import { NasaApiService } from '../nasa-api/nasa-api.service';
 import { CacheService } from './cache.service';
 import { QueryEpicDto } from './dto/query-epic.dto';
 
 describe('EpicService', () => {
   let service: EpicService;
-  let nasaApiService: NasaApiService;
-  let cacheService: CacheService;
-
   const mockEpicImage = {
     identifier: '20190530011359',
     caption:
@@ -53,8 +50,6 @@ describe('EpicService', () => {
     }).compile();
 
     service = module.get<EpicService>(EpicService);
-    nasaApiService = module.get<NasaApiService>(NasaApiService);
-    cacheService = module.get<CacheService>(CacheService);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -91,7 +86,9 @@ describe('EpicService', () => {
       const result = await service.getAvailableDates();
 
       expect(result).toEqual(expectedResponse);
-      expect(mockNasaApiService.getAvailableDates).toHaveBeenCalledWith('natural');
+      expect(mockNasaApiService.getAvailableDates).toHaveBeenCalledWith(
+        'natural',
+      );
     });
   });
 
@@ -139,8 +136,14 @@ describe('EpicService', () => {
 
       expect(result).toEqual(expectedResponse);
       expect(mockCacheService.getCachedData).toHaveBeenCalledWith(cachePath);
-      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', 'natural');
-      expect(mockCacheService.setCachedData).toHaveBeenCalledWith(cachePath, expectedImages);
+      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith(
+        '2019-05-30',
+        'natural',
+      );
+      expect(mockCacheService.setCachedData).toHaveBeenCalledWith(
+        cachePath,
+        expectedImages,
+      );
     });
 
     it('should get EPIC images with enhanced parameter', async () => {
@@ -164,7 +167,10 @@ describe('EpicService', () => {
       const result = await service.getEpicImages(query);
 
       expect(result).toEqual(expectedResponse);
-      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith('2019-05-30', 'enhanced');
+      expect(mockNasaApiService.getEpicImages).toHaveBeenCalledWith(
+        '2019-05-30',
+        'enhanced',
+      );
     });
 
     it('should handle API errors gracefully', async () => {
@@ -178,7 +184,9 @@ describe('EpicService', () => {
       mockCacheService.getCachedData.mockResolvedValue(null);
 
       // Mock NASA API error
-      mockNasaApiService.getEpicImages.mockRejectedValue(new Error(errorMessage));
+      mockNasaApiService.getEpicImages.mockRejectedValue(
+        new Error(errorMessage),
+      );
 
       await expect(service.getEpicImages(query)).rejects.toThrow(errorMessage);
     });
@@ -227,7 +235,9 @@ describe('EpicService', () => {
       expect(result).toEqual(cachePath);
       expect(mockCacheService.fileExists).toHaveBeenCalledWith(cachePath);
       expect(mockCacheService.validatePngFile).toHaveBeenCalledWith(cachePath);
-      expect(mockNasaApiService.saveEpicImageByIdentifier).not.toHaveBeenCalled();
+      expect(
+        mockNasaApiService.saveEpicImageByIdentifier,
+      ).not.toHaveBeenCalled();
     });
 
     /*
@@ -270,8 +280,12 @@ describe('EpicService', () => {
       mockCacheService.validatePngFile.mockResolvedValue(false);
       mockCacheService.removeCorruptedFile.mockResolvedValue(undefined);
       mockCacheService.waitForFileStability.mockResolvedValue(undefined);
-      mockCacheService.fileExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-      mockCacheService.validatePngFile.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+      mockCacheService.fileExists
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true);
+      mockCacheService.validatePngFile
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
 
       // Mock NASA API
       mockNasaApiService.saveEpicImageByIdentifier.mockResolvedValue(undefined);
@@ -283,8 +297,14 @@ describe('EpicService', () => {
       const result = await service.getEpicImageByIdentifier(identifier, date);
 
       expect(result).toEqual(cachePath);
-      expect(mockCacheService.removeCorruptedFile).toHaveBeenCalledWith(cachePath);
-      expect(mockNasaApiService.saveEpicImageByIdentifier).toHaveBeenCalledWith(identifier, date, cachePath);
+      expect(mockCacheService.removeCorruptedFile).toHaveBeenCalledWith(
+        cachePath,
+      );
+      expect(mockNasaApiService.saveEpicImageByIdentifier).toHaveBeenCalledWith(
+        identifier,
+        date,
+        cachePath,
+      );
     });
 
     it('should handle download errors gracefully', async () => {
@@ -298,9 +318,13 @@ describe('EpicService', () => {
       mockCacheService.fileExists.mockResolvedValue(false);
 
       // Mock NASA API error
-      mockNasaApiService.saveEpicImageByIdentifier.mockRejectedValue(new Error('Download failed'));
+      mockNasaApiService.saveEpicImageByIdentifier.mockRejectedValue(
+        new Error('Download failed'),
+      );
 
-      await expect(service.getEpicImageByIdentifier(identifier, date)).rejects.toThrow('Download failed');
+      await expect(
+        service.getEpicImageByIdentifier(identifier, date),
+      ).rejects.toThrow('Download failed');
     });
   });
 });

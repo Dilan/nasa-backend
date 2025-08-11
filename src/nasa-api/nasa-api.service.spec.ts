@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { NasaApiService, EpicImage } from './nasa-api.service';
-import { Logger } from '@nestjs/common';
 
 describe('NasaApiService', () => {
   let service: NasaApiService;
@@ -47,11 +46,11 @@ describe('NasaApiService', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
-        }
+        },
       ],
     })
-    .setLogger(mockLogger)
-    .compile();
+      .setLogger(mockLogger)
+      .compile();
 
     service = module.get<NasaApiService>(NasaApiService);
     configService = module.get<ConfigService>(ConfigService);
@@ -73,12 +72,12 @@ describe('NasaApiService', () => {
       const expectedImages = [mockEpicImage];
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
-      jest.spyOn(axios, 'get').mockResolvedValue({ 
+      jest.spyOn(axios, 'get').mockResolvedValue({
         data: expectedImages,
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       });
 
       const result = await service.getEpicImages(date, 'natural');
@@ -87,17 +86,26 @@ describe('NasaApiService', () => {
         data: expectedImages,
         status: 'success',
         limit: 100,
-        remaining: 95
+        remaining: 95,
       });
       expect(axios.get).toHaveBeenCalledWith(
         'https://api.nasa.gov/EPIC/api/natural/date/2019-05-30',
         { params: { api_key: 'DEMO_KEY' } },
       );
-      
+
       // Verify logger calls
-      expect(mockLogger.log).toHaveBeenCalledWith(`Fetching EPIC images for date: ${date}, type: natural`, 'NasaApiService');
-      expect(mockLogger.log).toHaveBeenCalledWith('Remaining requests: 95 out of 100', 'NasaApiService');
-      expect(mockLogger.log).toHaveBeenCalledWith('Retrieved 1 EPIC images', 'NasaApiService');
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        `Fetching EPIC images for date: ${date}, type: natural`,
+        'NasaApiService',
+      );
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        'Remaining requests: 95 out of 100',
+        'NasaApiService',
+      );
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        'Retrieved 1 EPIC images',
+        'NasaApiService',
+      );
     });
 
     it('should fetch enhanced EPIC images when natural is false', async () => {
@@ -105,12 +113,12 @@ describe('NasaApiService', () => {
       const expectedImages = [mockEpicImage];
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
-      jest.spyOn(axios, 'get').mockResolvedValue({ 
+      jest.spyOn(axios, 'get').mockResolvedValue({
         data: expectedImages,
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       });
 
       const result = await service.getEpicImages(date, 'enhanced');
@@ -119,27 +127,24 @@ describe('NasaApiService', () => {
         data: expectedImages,
         status: 'success',
         limit: 100,
-        remaining: 95
+        remaining: 95,
       });
       expect(axios.get).toHaveBeenCalledWith(
         'https://api.nasa.gov/EPIC/api/enhanced/date/2019-05-30',
         { params: { api_key: 'DEMO_KEY' } },
       );
-
     });
 
     it('should remove date when no date is provided', async () => {
       const expectedImages = [mockEpicImage];
-      const today = new Date();
-      const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
-      jest.spyOn(axios, 'get').mockResolvedValue({ 
+      jest.spyOn(axios, 'get').mockResolvedValue({
         data: expectedImages,
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       });
 
       const result = await service.getEpicImages(undefined, 'natural');
@@ -148,7 +153,7 @@ describe('NasaApiService', () => {
         data: expectedImages,
         status: 'success',
         limit: 100,
-        remaining: 95
+        remaining: 95,
       });
       expect(axios.get).toHaveBeenCalledWith(
         `https://api.nasa.gov/EPIC/api/natural`,
@@ -163,24 +168,25 @@ describe('NasaApiService', () => {
       mockConfigService.get.mockReturnValue('DEMO_KEY');
       jest.spyOn(axios, 'get').mockRejectedValue(new Error(errorMessage));
 
-      await expect(service.getEpicImages(date, 'natural')).rejects.toThrow(errorMessage);
+      await expect(service.getEpicImages(date, 'natural')).rejects.toThrow(
+        errorMessage,
+      );
     });
 
     it('should use custom API key from config', async () => {
       const date = '2019-05-30';
-      const natural = true;
       const expectedImages = [mockEpicImage];
 
       // Create a new service instance with custom API key
       mockConfigService.get.mockReturnValue('CUSTOM_API_KEY');
       const customService = new NasaApiService(configService);
 
-      jest.spyOn(axios, 'get').mockResolvedValue({ 
+      jest.spyOn(axios, 'get').mockResolvedValue({
         data: expectedImages,
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       });
 
       await customService.getEpicImages(date, 'natural');
@@ -197,7 +203,7 @@ describe('NasaApiService', () => {
       const identifier = '20190530011359';
       const date = '2019-05-30';
       const savePath = '/tmp/test-image.png';
-      
+
       // Mock the stream with proper event emitters
       const mockStream = {
         pipe: jest.fn().mockReturnValue({}),
@@ -213,7 +219,7 @@ describe('NasaApiService', () => {
         on: jest.fn().mockReturnThis(),
         end: jest.fn(),
       };
-      
+
       // Mock fs.createWriteStream to return our mock write stream
       const fs = require('fs');
       jest.spyOn(fs, 'createWriteStream').mockReturnValue(mockWriteStream);
@@ -229,16 +235,20 @@ describe('NasaApiService', () => {
         return mockWriteStream;
       });
 
-      const result = await service.saveEpicImageByIdentifier(identifier, date, savePath);
+      const result = await service.saveEpicImageByIdentifier(
+        identifier,
+        date,
+        savePath,
+      );
 
       expect(result).toBe(savePath);
       expect(axios.get).toHaveBeenCalledWith(
         'https://api.nasa.gov/EPIC/archive/natural/2019/05/30/png/20190530011359.png',
-        { 
-          params: { api_key: 'DEMO_KEY' }, 
+        {
+          params: { api_key: 'DEMO_KEY' },
           responseType: 'stream',
           timeout: 30000,
-          maxContentLength: 50 * 1024 * 1024
+          maxContentLength: 50 * 1024 * 1024,
         },
       );
     });
@@ -247,7 +257,7 @@ describe('NasaApiService', () => {
       const identifier = '20190530011359';
       const date = '2019-05-30';
       const savePath = '/tmp/test-image.png';
-      
+
       const mockStream = {
         pipe: jest.fn().mockReturnValue({}),
         on: jest.fn().mockReturnThis(),
@@ -261,7 +271,7 @@ describe('NasaApiService', () => {
         on: jest.fn().mockReturnThis(),
         end: jest.fn(),
       };
-      
+
       const fs = require('fs');
       jest.spyOn(fs, 'createWriteStream').mockReturnValue(mockWriteStream);
       jest.spyOn(fs, 'existsSync').mockReturnValue(false);
@@ -275,10 +285,16 @@ describe('NasaApiService', () => {
         return mockStream;
       });
 
-      await expect(service.saveEpicImageByIdentifier(identifier, date, savePath)).rejects.toThrow('Stream error');
-      
+      await expect(
+        service.saveEpicImageByIdentifier(identifier, date, savePath),
+      ).rejects.toThrow('Stream error');
+
       // Verify error logger call
-      expect(mockLogger.error).toHaveBeenCalledWith(`Stream error for ${identifier}:`, 'Stream error', 'NasaApiService');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        `Stream error for ${identifier}:`,
+        'Stream error',
+        'NasaApiService',
+      );
     });
   });
 
@@ -289,8 +305,8 @@ describe('NasaApiService', () => {
         data: mockDates,
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       };
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
@@ -302,11 +318,11 @@ describe('NasaApiService', () => {
         data: mockDates,
         status: 'success',
         limit: 100,
-        remaining: 95
+        remaining: 95,
       });
       expect(axios.get).toHaveBeenCalledWith(
         'https://api.nasa.gov/EPIC/api/natural/available',
-        { params: { api_key: 'DEMO_KEY' } }
+        { params: { api_key: 'DEMO_KEY' } },
       );
     });
 
@@ -316,8 +332,8 @@ describe('NasaApiService', () => {
         data: mockDates,
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       };
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
@@ -329,11 +345,11 @@ describe('NasaApiService', () => {
         data: mockDates,
         status: 'success',
         limit: 100,
-        remaining: 95
+        remaining: 95,
       });
       expect(axios.get).toHaveBeenCalledWith(
         'https://api.nasa.gov/EPIC/api/enhanced/available',
-        { params: { api_key: 'DEMO_KEY' } }
+        { params: { api_key: 'DEMO_KEY' } },
       );
     });
 
@@ -343,8 +359,8 @@ describe('NasaApiService', () => {
         data: mockDates,
         headers: {
           'x-ratelimit-remaining': '50',
-          'x-ratelimit-limit': '1000'
-        }
+          'x-ratelimit-limit': '1000',
+        },
       };
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
@@ -361,7 +377,7 @@ describe('NasaApiService', () => {
       const mockDates = ['2019-05-30'];
       const mockResponse = {
         data: mockDates,
-        headers: {}
+        headers: {},
       };
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
@@ -381,8 +397,8 @@ describe('NasaApiService', () => {
         data: mockDates,
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       };
 
       mockConfigService.get.mockReturnValue('CUSTOM_API_KEY');
@@ -394,7 +410,7 @@ describe('NasaApiService', () => {
 
       expect(axios.get).toHaveBeenCalledWith(
         'https://api.nasa.gov/EPIC/api/natural/available',
-        { params: { api_key: 'CUSTOM_API_KEY' } }
+        { params: { api_key: 'CUSTOM_API_KEY' } },
       );
     });
 
@@ -404,7 +420,9 @@ describe('NasaApiService', () => {
       mockConfigService.get.mockReturnValue('DEMO_KEY');
       jest.spyOn(axios, 'get').mockRejectedValue(new Error(errorMessage));
 
-      await expect(service.getAvailableDates('natural')).rejects.toThrow(errorMessage);
+      await expect(service.getAvailableDates('natural')).rejects.toThrow(
+        errorMessage,
+      );
     });
 
     it('should handle empty response data', async () => {
@@ -412,8 +430,8 @@ describe('NasaApiService', () => {
         data: [],
         headers: {
           'x-ratelimit-remaining': '95',
-          'x-ratelimit-limit': '100'
-        }
+          'x-ratelimit-limit': '100',
+        },
       };
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
@@ -425,4 +443,4 @@ describe('NasaApiService', () => {
       expect(result.status).toBe('success');
     });
   });
-}); 
+});
