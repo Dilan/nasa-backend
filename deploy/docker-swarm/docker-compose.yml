@@ -38,7 +38,7 @@ services:
 
   # Website
   site:
-    image: ${SITE_IMAGE:-ghcr.io/dilan/nasa-frontend:1.0}
+    image: ${SITE_IMAGE:-ghcr.io/dilan/nasa-site:1.0}
     networks:
       - nasa_network
     deploy:
