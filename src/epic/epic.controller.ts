@@ -53,12 +53,15 @@ export class EpicController {
     return result.data;
   }
 
-  @Get('image/:identifier')
+  @Get('images/:identifier')
   async getEpicImageByIdentifier(
     @Param('identifier') identifier: string,
     @Res() res: Response,
   ) {
     try {
+      // remove .png from identifier
+      identifier = identifier.replace('.png', '');
+
       const date = extractDateFromIdentifier(identifier);
       if (!date) {
         throw new NotFoundException('Invalid identifier');

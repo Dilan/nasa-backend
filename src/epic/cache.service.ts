@@ -132,8 +132,8 @@ export class CacheService {
   /**
    * Get image cache path for a specific identifier and date
    */
-  getImageCachePath(date: string, imageIdentifier: string): string {
-    return path.join(this.cacheDir, date, 'images', `${imageIdentifier}.png`);
+  getImageCachePath(imageIdentifier: string): string {
+    return path.join(this.cacheDir, 'images', `${imageIdentifier}.png`);
   }
 
   /**

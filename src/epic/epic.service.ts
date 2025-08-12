@@ -60,10 +60,7 @@ export class EpicService {
     image_identifier: string,
     date: string,
   ): Promise<string> {
-    const cachePath = this.cacheService.getImageCachePath(
-      date,
-      image_identifier,
-    );
+    const cachePath = this.cacheService.getImageCachePath(image_identifier);
 
     // Ensure cache directory exists
     await this.cacheService.ensureCacheDirectory(path.dirname(cachePath));

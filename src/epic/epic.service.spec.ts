@@ -240,34 +240,6 @@ describe('EpicService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    /*
-    it('should download image when not cached', async () => {
-      const identifier = '20190530011359';
-      const date = '2019-05-30';
-      const cachePath = '/test/cache/2019-05-30/images/20190530011359.png';
-
-      // Mock cache service
-      mockCacheService.getImageCachePath.mockReturnValue(cachePath);
-      mockCacheService.ensureCacheDirectory.mockResolvedValue(undefined);
-      mockCacheService.fileExists.mockResolvedValue(false);
-      mockCacheService.waitForFileStability.mockResolvedValue(undefined);
-      mockCacheService.validatePngFile.mockResolvedValue(true);
-
-      // Mock NASA API
-      mockNasaApiService.saveEpicImageByIdentifier.mockResolvedValue(undefined);
-
-      // Mock fs.stat for file size check
-      const mockStats = { size: 1024 };
-      jest.spyOn(require('fs').promises, 'stat').mockResolvedValue(mockStats);
-
-      const result = await service.getEpicImageByIdentifier(identifier, date);
-
-      expect(result).toEqual(cachePath);
-      expect(mockNasaApiService.saveEpicImageByIdentifier).toHaveBeenCalledWith(identifier, date, cachePath);
-      expect(mockCacheService.waitForFileStability).toHaveBeenCalledWith(cachePath);
-    });
-    */
-
     it('should retry download when cached image is corrupted', async () => {
       const identifier = '20190530011359';
       const date = '2019-05-30';
