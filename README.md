@@ -48,3 +48,12 @@ test coverage:
 
   ansible-playbook -i "50.17.39.22," "./ansible/website.yaml" \
           -u ubuntu --private-key ~/.ssh/nimbleseal
+
+
+docker run --rm \
+  -v /opt/certbot/conf:/etc/letsencrypt \
+  -v /opt/certbot/www:/var/www/certbot \
+  certbot/certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d nasa.hackerloft.ie \
+  --email hackerloft@protonmail.com --agree-tos --non-interactive
