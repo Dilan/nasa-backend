@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { NasaApiService, EpicImage } from './nasa-api.service';
+import { NasaError } from '../common/errors';
 
 describe('NasaApiService', () => {
   let service: NasaApiService;
@@ -163,7 +164,7 @@ describe('NasaApiService', () => {
 
     it('should handle API errors gracefully', async () => {
       const date = '2019-05-30';
-      const errorMessage = 'API Error';
+      const errorMessage = 'Unexpected error occurred while contacting NASA API';
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
       jest.spyOn(axios, 'get').mockRejectedValue(new Error(errorMessage));
@@ -177,9 +178,22 @@ describe('NasaApiService', () => {
       const date = '2019-05-30';
       const expectedImages = [mockEpicImage];
 
-      // Create a new service instance with custom API key
+      // Create a new module with custom API key
       mockConfigService.get.mockReturnValue('CUSTOM_API_KEY');
-      const customService = new NasaApiService(configService);
+      
+      const customModule: TestingModule = await Test.createTestingModule({
+        providers: [
+          NasaApiService,
+          {
+            provide: ConfigService,
+            useValue: mockConfigService,
+          },
+        ],
+      })
+        .setLogger(mockLogger)
+        .compile();
+
+      const customService = customModule.get<NasaApiService>(NasaApiService);
 
       jest.spyOn(axios, 'get').mockResolvedValue({
         data: expectedImages,
@@ -401,8 +415,22 @@ describe('NasaApiService', () => {
         },
       };
 
+      // Create a new module with custom API key
       mockConfigService.get.mockReturnValue('CUSTOM_API_KEY');
-      const customService = new NasaApiService(configService);
+      
+      const customModule: TestingModule = await Test.createTestingModule({
+        providers: [
+          NasaApiService,
+          {
+            provide: ConfigService,
+            useValue: mockConfigService,
+          },
+        ],
+      })
+        .setLogger(mockLogger)
+        .compile();
+
+      const customService = customModule.get<NasaApiService>(NasaApiService);
 
       jest.spyOn(axios, 'get').mockResolvedValue(mockResponse);
 
@@ -414,15 +442,21 @@ describe('NasaApiService', () => {
       );
     });
 
-    it('should handle API errors gracefully', async () => {
-      const errorMessage = 'API Error';
+    it('should handle API errors gracefully and throw NasaError', async () => {
+      const errorMessage = 'upstream connect error or disconnect/reset';
 
       mockConfigService.get.mockReturnValue('DEMO_KEY');
       jest.spyOn(axios, 'get').mockRejectedValue(new Error(errorMessage));
 
-      await expect(service.getAvailableDates('natural')).rejects.toThrow(
-        errorMessage,
-      );
+      // Option 1: Using try/catch
+      try {
+        await service.getAvailableDates('natural');
+        fail('Expected function to throw');
+      } catch (error) {
+        expect(error).toBeInstanceOf(NasaError);
+        expect(error.code).toBe(500);
+        expect(error.msg).toBe('Unexpected error occurred while contacting NASA API.');
+      }
     });
 
     it('should handle empty response data', async () => {

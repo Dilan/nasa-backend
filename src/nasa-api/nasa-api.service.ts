@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import * as fs from 'fs';
+import { NasaError } from '../common/errors';
 
 export interface EpicImage {
   identifier: string;
@@ -9,6 +10,17 @@ export interface EpicImage {
   image: string;
   version: string;
   date: string;
+}
+
+export interface APODImage {
+  copyright?: string;
+  date: string;
+  explanation: string;
+  hdurl?: string;
+  media_type: string;
+  service_version: string;
+  title: string;
+  url: string;
 }
 
 interface NasaApiResponse {
@@ -31,26 +43,61 @@ export class NasaApiService {
     this.apiKey = this.configService.get<string>('DEMO_KEY');
   }
 
-  // type could be "natural" or "enhanced"
-  // data is an array of dates
-  async getAvailableDates(
-    type: EpicType = 'natural',
-  ): Promise<NasaApiResponse> {
-    const url = `${this.baseUrl}/EPIC/api/${type}/available`;
-    const params = { api_key: this.apiKey };
-    const response: AxiosResponse<string[]> = await axios.get<string[]>(url, {
-      params,
-    });
+  private handleAxiosError(error: any): never {
+    if (error.response) {
 
-    const remaining = response.headers['x-ratelimit-remaining'] as string;
-    const limit = response.headers['x-ratelimit-limit'] as string;
+      // Server responded with error status
+      const status = error.response.status;
+      let message = 'NASA API request failed';
+      
+      // For 400 errors, try to extract NASA's specific error message
+      if (status === 400 && error.response.data && error.response.data.msg) {
+        message = error.response.data.msg;
+        this.logger.log(`NASA API 400 error response: ${JSON.stringify(error.response.data)}`);
+      } else if (status === 429) {
+        message = 'Rate limit exceeded. Please try again later.';
+      } else if (status === 401) {
+        message = 'Invalid API key. Please check your configuration.';
+      } else if (status === 404) {
+        message = 'Requested resource not found.';
+      } else if (status >= 500) {
+        message = 'NASA API server error. Please try again later.';
+      }
+      
+      // Log the full error response for debugging
+      this.logger.error(`NASA API error response: Status ${status}, Data: ${JSON.stringify(error.response.data)}`);
+      
+      throw new NasaError(status, message);
+    } else if (error.request) {
+      // Request was made but no response received
+      throw new NasaError(503, 'NASA API is currently unavailable. Please try again later.');
+    } else {
+      // Something else happened
+      throw new NasaError(500, 'Unexpected error occurred while contacting NASA API.');
+    }
+  }
 
-    return {
-      data: response.data,
-      status: 'success',
-      limit: parseInt(limit, 10),
-      remaining: parseInt(remaining, 10),
-    };
+  async getAvailableDates(type: EpicType = 'natural'): Promise<NasaApiResponse> {
+    try {
+      const url = `${this.baseUrl}/EPIC/api/${type}/available`;
+      const params = { api_key: this.apiKey };
+      const response: AxiosResponse<string[]> = await axios.get<string[]>(url, {
+        params,
+      });
+
+      const remaining = response.headers['x-ratelimit-remaining'] as string;
+      const limit = response.headers['x-ratelimit-limit'] as string;
+
+      return {
+        data: response.data,
+        status: 'success',
+        limit: parseInt(limit, 10),
+        remaining: parseInt(remaining, 10),
+      };
+    } catch (error) {
+      this.logger.error(`Error fetching available dates: ${error.message}`);
+      this.handleAxiosError(error);
+    }
   }
 
   // EPIC API Methods
@@ -92,16 +139,12 @@ export class NasaApiService {
         remaining: parseInt(remaining, 10),
       };
     } catch (error) {
-      this.logger.error(
-        'Error fetching EPIC images:',
-        (error as Error).message,
-      );
-      throw error;
+      this.logger.error('Error fetching EPIC images:',(error as Error).message);
+      this.handleAxiosError(error);
     }
   }
 
   // https://api.nasa.gov/EPIC/archive/natural/2025/07/15/png/epic_1b_20250715060350.png?api_key=TOtICCD1wYJXzVz37hDEc1nrJ2Pju2BQzZDMTmho
-  // https://api.nasa.gov/EPIC/archive/natural/2020/07/15/png/epic_1b_20200715001752.png?api_key=TOtICCD1wYJXzVz37hDEc1nrJ2Pju2BQzZDMTmho
   async saveEpicImageByIdentifier(
     imageIdentifier: string,
     date: string,
@@ -122,8 +165,6 @@ export class NasaApiService {
 
       // axios stream to writer file with proper completion handling
       const writer = fs.createWriteStream(savePath);
-
-      // console.log(url + '?api_key=' + this.apiKey);
 
       const response = await axios.get(url, {
         params,
@@ -192,6 +233,53 @@ export class NasaApiService {
       }
 
       throw new NotFoundException('Image not found after multiple attempts');
+    }
+  }
+
+  // APOD API Methods
+  async getApodImages(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<{
+    data: APODImage[];
+    status: string;
+    limit: number;
+    remaining: number;
+  }> {
+    try {
+      const url = `${this.baseUrl}/planetary/apod`;
+      const params: any = { api_key: this.apiKey };
+      
+      if (startDate) {
+        params.start_date = startDate;
+      }
+      if (endDate) {
+        params.end_date = endDate;
+      }
+
+      const response: AxiosResponse<APODImage[]> = await axios.get<APODImage[]>(
+        url,
+        { params },
+      );
+
+      const remaining = response.headers['x-ratelimit-remaining'] as string;
+      const limit = response.headers['x-ratelimit-limit'] as string;
+
+      return {
+        data: response.data,
+        status: 'success',
+        limit: parseInt(limit, 10),
+        remaining: parseInt(remaining, 10),
+      };
+    } catch (error) {
+      this.logger.error(
+        'Error fetching APOD images:',
+        (error as Error).message,
+      );
+      if (error instanceof NasaError) {
+        throw error;
+      }
+      this.handleAxiosError(error);
     }
   }
 }

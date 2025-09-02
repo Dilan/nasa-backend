@@ -10,6 +10,7 @@ import { LoggerMiddleware } from '../common/middleware/logger.middleware';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EpicModule } from '../epic/epic.module';
+import { ApodModule } from '../apod/apod.module';
 import { NasaApiModule } from '../nasa-api/nasa-api.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { NasaApiModule } from '../nasa-api/nasa-api.module';
     HttpModule,
     NasaApiModule,
     EpicModule,
+    ApodModule,
   ],
   controllers: [AppController],
   providers: [AppService],

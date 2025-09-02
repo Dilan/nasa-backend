@@ -1,11 +1,11 @@
 meta {
-  name: EPIC by Date
+  name: APOD
   type: http
-  seq: 1
+  seq: 3
 }
 
 get {
-  url: https://api.nasa.gov/EPIC/api/natural/date/2020-07-15?api_key={{DEMO_KEY}}
+  url: https://api.nasa.gov/planetary/apod?api_key={{DEMO_KEY}}
   body: none
   auth: inherit
 }
